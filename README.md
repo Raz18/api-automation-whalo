@@ -33,7 +33,6 @@ Both `playwright.config.ts` and `utils/api-client.ts` load these via `dotenv`. F
 
 ## Project Structure
 ```
-whalo-api-automation/
 ├── .env                         # Environment variables (git-ignored)
 ├── .gitignore                   # Excludes node_modules, test-results, .env
 ├── playwright.config.ts         # Playwright config — loads dotenv, sets baseURL
