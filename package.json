@@ -1,0 +1,21 @@
+{
+  "name": "fish-of-fortune-tests",
+  "version": "1.0.0",
+  "description": "E2E API test suite for Fish of Fortune Wheel Spin flow",
+  "scripts": {
+    "test": "playwright test",
+    "test:list": "playwright test --reporter=list",
+    "test:postman": "newman run postman/Fish_of_Fortune_E2E.postman_collection.json"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^25.3.0",
+    "@types/uuid": "^10.0.0",
+    "newman": "^6.2.2",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "uuid": "^11.0.0"
+  }
+}
