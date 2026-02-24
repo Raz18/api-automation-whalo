@@ -94,30 +94,20 @@ npm run test:postman
 A dedicated test file that performs deeper validation on the full login response structure. These validations go beyond the mandatory flow to verify additional fields documented in the API response.
 
 ### Test 1: First Login (New User) — Assumptions & Validations
-| # | Field | Assertion | Assumption |
-|---|-------|-----------|------------|
-| 1 | `AccountCreated` | `=== true` | Must be `true` on the very first login with a new DeviceId |
-| 2 | `ExternalPlayerId` | Non-empty string | Every user is assigned a unique external player ID upon creation |
-| 3 | `DisplayName` | Non-empty string | New users are auto-assigned a guest display name (e.g. "Guest_17571") |
-| 4 | `Avatar` | Number >= 0 | A default avatar ID is assigned to new users |
-| 5 | `Level.LevelId` | `=== 1` | New users always start at level 1 |
-| 6 | `Wheel.Wedges` | Non-empty array | The wheel must contain wedges for spinning |
-| 7 | `Cards` | Non-empty array | New users receive a set of starter cards |
-| 8 | `CoinsAmount` | `=== UserBalance.Coins` | Top-level CoinsAmount must match nested UserBalance.Coins |
-| 9 | `GemsAmount` | `=== UserBalance.Gems` | Top-level GemsAmount must match nested UserBalance.Gems |
-| 10 | `EnergyAmount` | `=== UserBalance.Energy` | Top-level EnergyAmount must match nested UserBalance.Energy |
+| # | Field | Assertion | Business Logic / Assumption |
+|---|-------|-----------|-----------------------------|
+| 1 | `AccountCreated` | `=== true` | The system correctly identifies and flags a new `DeviceId` registration. |
+| 2 | `ExternalPlayerId` | Non-empty string | A unique backend identity is generated for analytics and tracking. |
+| 3 | `Level.LevelId` | `=== 1` | New users are initialized at the base progression level. |
+| 4 | `Wheel` & `Cards` | Non-empty arrays | Core game configurations are successfully loaded so the user can play immediately. |
+| 5 | Balance Consistency | `*Amount === UserBalance.*` | Top-level summary fields (`CoinsAmount`, `EnergyAmount`, `GemsAmount`) must perfectly match the nested `UserBalance` object to prevent UI/client desyncs. |
 
 ### Test 2: Relogin (Existing User) — Assumptions & Validations
-| # | Field | Assertion | Assumption |
-|---|-------|-----------|------------|
-| 1 | `AccountCreated` | `=== false` | Must be `false` on relogin — account already exists |
-| 2 | `ExternalPlayerId` | Matches first login | Player ID is immutable across sessions |
-| 3 | `DisplayName` | Matches first login | Display name persists across sessions |
-| 4 | `Avatar` | Matches first login | Avatar persists across sessions |
-| 5 | `Level.LevelId` | Matches first login | Level does not change between login and immediate relogin |
-| 6 | `CoinsAmount === UserBalance.Coins` | Internal consistency | Coin amounts remain consistent on relogin |
-| 7 | `GemsAmount === UserBalance.Gems` | Internal consistency | Gem amounts remain consistent on relogin |
-| 8 | `EnergyAmount === UserBalance.Energy` | Internal consistency | Energy amounts remain consistent on relogin |
+| # | Field | Assertion | Business Logic / Assumption |
+|---|-------|-----------|-----------------------------|
+| 1 | `AccountCreated` | `=== false` | The system recognizes an existing `DeviceId` and resumes the session instead of overwriting the account. |
+| 2 | `ExternalPlayerId` | Matches first login | The core player identity is immutable and persists across sessions. |
+| 3 | Balance Consistency | `*Amount === UserBalance.*` | Internal data consistency between summary fields and the `UserBalance` object is maintained upon session resumption. |
 
 ---
 
@@ -146,14 +136,12 @@ A dedicated test file that spins the wheel until energy is fully depleted across
 
 ---
 
-## General Assumptions
-- Each test run uses a fresh DeviceId (uuid v4) ensuring test isolation and idempotency
-- A newly created account has sufficient Energy (>0) for at least one spin
-- `status: 0` in API responses indicates success
-- Coin rewards: `RewardDefinitionType === 1 && RewardResourceType === 1`. Feed/card rewards (`RewardDefinitionType === 6`) may also grant coins indirectly via nested `FeedResponse.Rewards`
-- The post-spin `UserBalance` from the spin response is used as the authoritative balance (not manual calculation from reward amounts)
-- Each spin costs exactly 1 Energy
-- `accessToken` is a custom header (not Authorization/Bearer)
-- The Spin API endpoint has an intentional double slash (`/wheel//v1`)
-- `UserBalance` in the spin response reflects the fully updated state after the spin
-- Relogin with the same DeviceId returns persisted state without modification
+## General Assumptions & Architectural Observations
+- **Idempotency via UUIDs:** Each test run generates a fresh `DeviceId` (UUID v4). This ensures complete test isolation, preventing state pollution or flakiness from previous runs.
+- **Source of Truth for Balances:** The `UserBalance` object returned in the `SpinResult` is treated as the absolute source of truth. We do *not* manually calculate balances by summing `Reward.Amount` because certain rewards (like `RewardDefinitionType: 6` / Cards) can trigger nested `FeedResponse` events that indirectly alter the coin balance.
+- **Session Extension via Rewards:** A user's spin session can exceed their `initialEnergy` count. Because spins can reward energy, the total number of spins before exhaustion is `>= initialEnergy`, not strictly equal.
+- **Stateless Relogin:** Calling the Login API with an existing `DeviceId` acts as a session resumption. It must return the exact persisted state without modifying balances or refunding energy.
+- **API Quirks Handled:** 
+  - The Spin API endpoint contains an intentional double slash (`/wheel//v1`), which was preserved to match the actual server routing.
+  - Authentication is handled via a custom `accessToken` header rather than a standard `Authorization: Bearer` token.
+  - A successful API response is denoted by a custom `status: 0` in the JSON body, rather than relying solely on HTTP 200.
