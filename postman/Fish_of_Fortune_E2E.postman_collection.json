@@ -6,6 +6,7 @@
   },
   "variable": [
     { "key": "baseUrl", "value": "https://fof-devplayground-api.whalosvc.com", "type": "string" },
+    { "key": "loginSource", "value": "{{loginSource}}", "type": "string" },
     { "key": "deviceId", "value": "", "type": "string" },
     { "key": "accessToken", "value": "", "type": "string" },
     { "key": "initialCoins", "value": "", "type": "string" },
@@ -75,7 +76,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"DeviceId\": \"candidate_test_{{deviceId}}\",\n  \"LoginSource\": \"test_raz_05022XXXXXXXX\"\n}",
+          "raw": "{\n  \"DeviceId\": \"candidate_test_{{deviceId}}\",\n  \"LoginSource\": \"{{loginSource}}\"\n}",
           "options": { "raw": { "language": "json" } }
         },
         "url": {
@@ -130,6 +131,10 @@
               "pm.test('Energy decreased by 1', function () {",
               "    const initialEnergy = parseInt(pm.collectionVariables.get('initialEnergy'));",
               "    pm.expect(spinResult.UserBalance.Energy).to.eql(initialEnergy - 1);",
+              "});",
+              "",
+              "pm.test('SelectedIndex is a valid number', function () {",
+              "    pm.expect(body.response.SelectedIndex).to.be.a('number').and.to.be.at.least(0);",
               "});",
               "",
               "pm.collectionVariables.set('postSpinCoins', spinResult.UserBalance.Coins);",
@@ -202,7 +207,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"DeviceId\": \"candidate_test_{{deviceId}}\",\n  \"LoginSource\": \"test_raz_05022XXXXXXXX\"\n}",
+          "raw": "{\n  \"DeviceId\": \"candidate_test_{{deviceId}}\",\n  \"LoginSource\": \"{{loginSource}}\"\n}",
           "options": { "raw": { "language": "json" } }
         },
         "url": {

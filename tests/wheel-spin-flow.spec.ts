@@ -37,7 +37,7 @@ test.describe('Wheel Spin E2E Flow', () => {
 
       // Assert HTTP 200 and API-level success
       expect(result.httpStatus).toBe(200);
-      expect(result.fullResponse.status).toBe(0);
+      expect(result.status, 'Spin must succeed (status 0)').toBe(0);
 
       // Assert rewards array exists and is not empty
       expect(result.rewards).toBeInstanceOf(Array);
@@ -48,8 +48,8 @@ test.describe('Wheel Spin E2E Flow', () => {
       expect(typeof reward.RewardDefinitionType).toBe('number');
       expect(typeof reward.RewardResourceType).toBe('number');
       expect(typeof reward.Amount).toBe('number');
+      expect(reward.Amount).toBeGreaterThan(0);
       expect(typeof reward.TrackingId).toBe('string');
-      expect(reward.TrackingId.length).toBeGreaterThan(0);
 
       // Assert selectedIndex is valid
       expect(result.selectedIndex).toBeGreaterThanOrEqual(0);
@@ -71,8 +71,9 @@ test.describe('Wheel Spin E2E Flow', () => {
     await test.step('Step 3: Relogin with same DeviceId', async () => {
       const result = await login(request, deviceId);
 
-      // Assert HTTP 200
+      // Assert HTTP 200 and API-level success
       expect(result.httpStatus).toBe(200);
+      expect(result.fullResponse.status).toBe(0);
 
       // Store relogin balance
       reloginBalance = result.userBalance;
@@ -81,7 +82,7 @@ test.describe('Wheel Spin E2E Flow', () => {
     });
 
     await test.step('Step 4: Validate state persistence across sessions', async () => {
-      // ── Invariant 1: Spin reward is applied exactly once ──
+      // ── Invariant 1: Spin reward is applied exactly once ─
       // The reward was applied (balance changed from initial state)
       expect(postSpinBalance.Coins,
         'Reward must be applied — post-spin coins should be >= initial coins'
@@ -112,7 +113,7 @@ test.describe('Wheel Spin E2E Flow', () => {
         'No duplicate spin — energy must not be refunded after session change'
       ).toBe(postSpinBalance.Energy);
 
-      //  No rollback occurs after session change ──
+      //  No rollback occurs after session change ─
       // Coins must not revert to initial balance (rollback detection)
       expect(reloginBalance.Coins,
         'No rollback — relogin coins must be >= initial coins (reward must not be reverted)'

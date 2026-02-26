@@ -75,6 +75,7 @@ test.describe('Bonus — Extended Login Response Validation', () => {
     // Spin to modify state
     const spin = await spinWheel(request, firstLogin.accessToken);
     expect(spin.httpStatus).toBe(200);
+    expect(spin.status, 'Spin must succeed (status 0)').toBe(0);
 
     // Relogin
     const relogin = await login(request, deviceId);
@@ -98,9 +99,5 @@ test.describe('Bonus — Extended Login Response Validation', () => {
     expect(relogin.coinsAmount, 'Relogin CoinsAmount must match UserBalance.Coins').toBe(relogin.userBalance.Coins);
     expect(relogin.gemsAmount, 'Relogin GemsAmount must match UserBalance.Gems').toBe(relogin.userBalance.Gems);
     expect(relogin.energyAmount, 'Relogin EnergyAmount must match UserBalance.Energy').toBe(relogin.userBalance.Energy);
-
-    console.log('AccountCreated (relogin):', relogin.accountCreated);
-    console.log('ExternalPlayerId match:', relogin.externalPlayerId === firstLogin.externalPlayerId);
-    console.log('DisplayName match:', relogin.displayName === firstLogin.displayName);
   });
 });

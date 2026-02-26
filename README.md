@@ -46,7 +46,8 @@ Both `playwright.config.ts` and `utils/api-client.ts` load these via `dotenv`. F
 │   ├── api-client.ts            # API abstraction layer (login, spinWheel)
 │   └── types.ts                 # TypeScript interfaces (LoginResult, SpinResult)
 └── postman/
-    └── Fish_of_Fortune_E2E.postman_collection.json  # Postman collection
+    ├── Fish_of_Fortune_E2E.postman_collection.json  # Postman collection
+    └── Fish_of_Fortune_Dev.postman_environment.json # Postman environment
 ```
 
 ## Running Tests
@@ -64,7 +65,9 @@ npx playwright show-report
 
 ### Postman Collection
 1. Import `postman/Fish_of_Fortune_E2E.postman_collection.json` into Postman
-2. Run the collection sequentially using Collection Runner (Run order: Login → Spin → Relogin)
+2. Import `postman/Fish_of_Fortune_Dev.postman_environment.json` into Postman
+3. Select the **Fish of Fortune - Dev** environment in the top right corner
+4. Run the collection sequentially using Collection Runner (Run order: Login → Spin → Relogin)
 
 **Bonus: Run via Newman (CLI)**
 ```bash
@@ -144,4 +147,21 @@ A dedicated test file that spins the wheel until energy is fully depleted across
 - **API Quirks Handled:** 
   - The Spin API endpoint contains an intentional double slash (`/wheel//v1`), which was preserved to match the actual server routing.
   - Authentication is handled via a custom `accessToken` header rather than a standard `Authorization: Bearer` token.
-  - A successful API response is denoted by a custom `status: 0` in the JSON body, rather than relying solely on HTTP 200.
+  - **HTTP 200 is returned even for error responses.** The server always returns HTTP 200 OK — including for business-logic errors (e.g., `{ "status": -3, "response": "NotEnoughResources" }` when spinning with 0 energy). Therefore, all tests validate **both** `httpStatus === 200` and the inner `response.status === 0` to confirm true success. Relying on HTTP status codes alone would miss API-level failures.
+
+### Energy Boost Behavior
+
+- New users start with **10 energy** (observed consistently across test runs)
+- Each spin costs exactly **1 energy**
+- The wheel can land on energy reward wedges (`RewardDefinitionType: 1, RewardResourceType: 3`), which **add energy back** to the user's balance
+- This means the total number of spins before exhaustion is **≥ initialEnergy**, not strictly equal — the session is extended by energy rewards
+- The exhaustion test (`bonus-spin-exhaustion.spec.ts`) accounts for this by using a `while (currentEnergy > 0)` loop instead of a fixed iteration count
+- Energy rewards are reflected immediately in `SpinResult.UserBalance.Energy`, maintaining the source-of-truth pattern
+
+### WedgeType Distinction
+
+The wheel configuration distinguishes between wedge types:
+- **`WedgeType: 1`** — Standard wedge (coins, cards/feed actions)
+- **`WedgeType: 4`** — Special wedge (high-value coins like 100,000, gems, or energy rewards)
+
+This distinction is cosmetic for test validation purposes — the backend applies rewards identically regardless of `WedgeType`. **my tests validate the `UserBalance` after each spin rather than predicting outcomes based on wedge type**.

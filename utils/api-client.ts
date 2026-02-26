@@ -13,57 +13,88 @@ export function generateDeviceId(): string {
 }
 
 export async function login(request: APIRequestContext, deviceId: string): Promise<LoginResult> {
-  const response = await request.post(`${BASE_URL}/api/frontend/login/v4/login`, {
-    data: {
-      DeviceId: deviceId,
-      LoginSource: LOGIN_SOURCE,
-    },
-  });
+  try {
+    const response = await request.post(`${BASE_URL}/api/frontend/login/v4/login`, {
+      data: {
+        DeviceId: deviceId,
+        LoginSource: LOGIN_SOURCE,
+      },
+    });
 
-  const httpStatus = response.status();
-  const body = await response.json();
+    const httpStatus = response.status();
+    const body = await response.json();
 
-  const loginResponse = body.response.LoginResponse;
+    if (!body?.response?.LoginResponse) {
+      throw new Error(`Invalid login response structure. HTTP ${httpStatus}. Body: ${JSON.stringify(body)}`);
+    }
 
-  return {
-    httpStatus,
-    loginStatus: body.response.LoginStatus,
-    accessToken: loginResponse.AccessToken,
-    userBalance: loginResponse.UserBalance,
-    accountCreated: loginResponse.AccountCreated,
-    externalPlayerId: loginResponse.ExternalPlayerId,
-    displayName: loginResponse.DisplayName,
-    avatar: loginResponse.Avatar,
-    level: loginResponse.Level,
-    wheel: loginResponse.Wheel,
-    cards: loginResponse.Cards,
-    session: loginResponse.Session,
-    coinsAmount: loginResponse.CoinsAmount,
-    gemsAmount: loginResponse.GemsAmount,
-    energyAmount: loginResponse.EnergyAmount,
-    fullResponse: body,
-  };
+    const loginResponse = body.response.LoginResponse;
+
+    return {
+      httpStatus,
+      loginStatus: body.response.LoginStatus,
+      accessToken: loginResponse.AccessToken,
+      userBalance: loginResponse.UserBalance,
+      accountCreated: loginResponse.AccountCreated,
+      externalPlayerId: loginResponse.ExternalPlayerId,
+      displayName: loginResponse.DisplayName,
+      avatar: loginResponse.Avatar,
+      level: loginResponse.Level,
+      wheel: loginResponse.Wheel,
+      cards: loginResponse.Cards,
+      session: loginResponse.Session,
+      coinsAmount: loginResponse.CoinsAmount,
+      gemsAmount: loginResponse.GemsAmount,
+      energyAmount: loginResponse.EnergyAmount,
+      fullResponse: body,
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Login API call failed for deviceId '${deviceId}': ${message}`, { cause: error });
+  }
 }
 
 export async function spinWheel(request: APIRequestContext, accessToken: string): Promise<SpinResult> {
-  const response = await request.post(`${BASE_URL}/api/frontend/wheel//v1`, {
-    headers: {
-      accessToken: accessToken, // custom header
-    },
-    data: {
-      multiplier: 1,
-    },
-  });
+  try {
+    const response = await request.post(`${BASE_URL}/api/frontend/wheel//v1`, {
+      headers: {
+        accessToken: accessToken, // custom header
+      },
+      data: {
+        multiplier: 1,
+      },
+    });
 
-  const httpStatus = response.status();
-  const body = await response.json();
-  const spinResult = body.response.SpinResult;
+    const httpStatus = response.status();
+    const body = await response.json();
+    const status = body?.status ?? -1;
 
-  return {
-    httpStatus,
-    selectedIndex: body.response.SelectedIndex,
-    rewards: spinResult.Rewards,
-    userBalance: spinResult.UserBalance,
-    fullResponse: body,
-  };
+    // Handle business-logic rejections (e.g. status -3: NotEnoughResources)
+    if (status !== 0) {
+      return {
+        httpStatus,
+        status,
+        rawResponse: typeof body?.response === 'string' ? body.response : JSON.stringify(body?.response),
+        fullResponse: body,
+      } as SpinResult;
+    }
+
+    const spinResult = body?.response?.SpinResult;
+
+    if (!spinResult) {
+      throw new Error(`Invalid spin response structure. HTTP ${httpStatus}. Body: ${JSON.stringify(body)}`);
+    }
+
+    return {
+      httpStatus,
+      status,
+      selectedIndex: body.response.SelectedIndex,
+      rewards: spinResult.Rewards,
+      userBalance: spinResult.UserBalance,
+      fullResponse: body,
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`SpinWheel API call failed: ${message}`, { cause: error });
+  }
 }

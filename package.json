@@ -5,7 +5,7 @@
   "scripts": {
     "test": "playwright test",
     "test:list": "playwright test --reporter=list",
-    "test:postman": "newman run postman/Fish_of_Fortune_E2E.postman_collection.json"
+    "test:postman": "newman run postman/Fish_of_Fortune_E2E.postman_collection.json -e postman/Fish_of_Fortune_Dev.postman_environment.json"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",

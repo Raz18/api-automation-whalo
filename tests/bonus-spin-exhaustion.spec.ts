@@ -14,7 +14,7 @@ import { generateDeviceId, login, spinWheel } from '../utils/api-client';
  *
  * Note: Only coins are tracked. Other reward types (RewardDefinitionType === 6
  * with FeedResponse) can change coin balance indirectly, which is why we always
- * use spin.userBalance.Coins as source of truth — never manual arithmetic.
+ * use spin.userBalance.Coins at a given iteration as source of truth — never manual arithmetic.
  */
 test.describe('Bonus — Spin Until Exhaustion', () => {
 
@@ -45,6 +45,7 @@ test.describe('Bonus — Spin Until Exhaustion', () => {
       const spin = await spinWheel(request, accessToken);
 
       expect(spin.httpStatus, `Spin ${spinHistory.length + 1} should return HTTP 200`).toBe(200);
+      expect(spin.status, `Spin ${spinHistory.length + 1} must succeed (status 0, not business rejection)`).toBe(0);
 
       const coinsAfter = spin.userBalance.Coins;
       const rewardTypes = spin.rewards.map(r => r.RewardDefinitionType);
@@ -60,14 +61,13 @@ test.describe('Bonus — Spin Until Exhaustion', () => {
 
       currentCoins = coinsAfter;
       currentEnergy = spin.userBalance.Energy;
+
     }
 
     return { spinHistory, finalCoins: currentCoins, finalEnergy: currentEnergy };
   }
 
   test('spin until out of energy and track coin balance', async ({ request }) => {
-    test.setTimeout(60_000);
-
     const deviceId = generateDeviceId();
 
     // ── Step 1: Login ──
@@ -97,17 +97,25 @@ test.describe('Bonus — Spin Until Exhaustion', () => {
     // Final coins must be >= initial (coins can only increase or stay same from spins)
     expect(finalCoins, 'Final coins must be >= initial coins').toBeGreaterThanOrEqual(initialCoins);
 
-    // Log spin-by-spin summary
+    // Log spin summary
     const totalCoinsGained = finalCoins - initialCoins;
     console.log(`\nSpin Summary — ${spinHistory.length} spins completed`);
     console.log(`Coins: ${initialCoins} → ${finalCoins} (gained ${totalCoinsGained})`);
-    for (const spin of spinHistory) {
-      console.log(
-        `  Spin ${spin.spinNumber}: index=${spin.selectedIndex}, ` +
-        `coins ${spin.coinsBefore} → ${spin.coinsAfter} (${spin.coinDelta >= 0 ? '+' : ''}${spin.coinDelta}), ` +
-        `rewardTypes=[${spin.rewardTypes.join(',')}]`
-      );
-    }
+
+    // ── Step 2.5: Verify backend rejects spin when energy is 0 ──
+    const rejectedSpin = await spinWheel(request, loginResult.accessToken);
+
+    expect(rejectedSpin.httpStatus,
+      'Backend returns HTTP 200 even for business-logic rejections'
+    ).toBe(200);
+    expect(rejectedSpin.status,
+      'Backend must reject spin with status -3 when out of energy'
+    ).toBe(-3);
+    expect(rejectedSpin.rawResponse,
+      'Rejection reason should be NotEnoughResources'
+    ).toBe('NotEnoughResources');
+
+    console.log(`Post-exhaustion spin — status: ${rejectedSpin.status}, response: ${rejectedSpin.rawResponse}`);
 
     // ── Step 3: Relogin — verify persistence after full exhaustion ──
     const relogin = await login(request, deviceId);
@@ -125,8 +133,6 @@ test.describe('Bonus — Spin Until Exhaustion', () => {
   });
 
   test('wheel is scripted — same wedges and spin sequence for different users', async ({ request }) => {
-    test.setTimeout(60_000);
-
     // ── Create User A ──
     const deviceIdA = generateDeviceId();
     const loginA = await login(request, deviceIdA);
@@ -147,7 +153,7 @@ test.describe('Bonus — Spin Until Exhaustion', () => {
 
     console.log(`Wedges match: ${wedgesA === wedgesB} (${loginA.wheel.Wedges.length} wedges)`);
 
-    // ── Spin both users to exhaustion and collect selectedIndex sequences ──
+    // Spin both users to exhaustion and collect selectedIndex sequences ──
     const resultA = await spinUntilExhausted(
       request,
       loginA.accessToken,

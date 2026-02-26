@@ -70,6 +70,8 @@ export interface LoginResult {
 
 export interface SpinResult {
   httpStatus: number;
+  status: number;         // 0 = success, e.g., -3 = NotEnoughResources
+  rawResponse?: string;   // Populated for error responses
   selectedIndex: number;
   rewards: Reward[];
   userBalance: UserBalance;
