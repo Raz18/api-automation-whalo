@@ -1,6 +1,6 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
 import { generateDeviceId, login, spinWheel } from '../utils/api-client';
-import { UserBalance } from '../utils/types';
+import { UserBalance, Reward } from '../utils/types';
 
 test.describe('Wheel Spin E2E Flow', () => {
 
@@ -38,10 +38,6 @@ test.describe('Wheel Spin E2E Flow', () => {
       // Assert HTTP 200 and API-level success
       expect(result.httpStatus).toBe(200);
       expect(result.status, 'Spin must succeed (status 0)').toBe(0);
-
-      // Assert rewards array exists and is not empty
-      expect(result.rewards).toBeInstanceOf(Array);
-      expect(result.rewards.length).toBeGreaterThan(0);
 
       // Assert rewards array exists and is not empty
       expect(result.rewards).toBeInstanceOf(Array);
