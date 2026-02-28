@@ -54,11 +54,34 @@ test.describe('Wheel Spin E2E Flow', () => {
       // Assert selectedIndex is valid
       expect(result.selectedIndex).toBeGreaterThanOrEqual(0);
 
-      // Assert coins did not decrease (spin never takes coins away)
-      expect(result.userBalance.Coins).toBeGreaterThanOrEqual(initialBalance.Coins);
+      // Dynamically calculate expected balances based on the exact reward granted.
+      // Note: The wheel is scripted (fixed seed for new users), so the first spin
+      // consistently lands on the same reward type. The branching below handles all
+      // reward types to keep the test resilient against server-side seed changes.
+      let expectedCoins = initialBalance.Coins;
+      let expectedEnergy = initialBalance.Energy - 1; // Base cost of 1 energy per spin
 
-      // Assert energy decreased by exactly 1 (each spin costs 1 energy)
-      expect(result.userBalance.Energy).toBe(initialBalance.Energy - 1);
+      if (reward.RewardDefinitionType === 1 && reward.RewardResourceType === 1) {
+        // Direct coin reward — Amount is added to balance
+        expectedCoins += reward.Amount;
+      } else if (reward.RewardDefinitionType === 6 && reward.FeedResponse?.Rewards) {
+        // Card/Feed reward — coins granted indirectly via FeedResponse.Rewards
+        const nestedRewards = Object.values(reward.FeedResponse.Rewards).flat() as any[];
+        for (const r of nestedRewards) {
+          if (r.RewardDefinitionType === 1 && r.RewardResourceType === 1) {
+            expectedCoins += r.Amount;
+          }
+        }
+      }
+
+      if (reward.RewardResourceType === 3) {
+        // Energy reward — can appear alongside any reward type
+        expectedEnergy += reward.Amount;
+      }
+
+      // Strict assertions verifying the business logic actually applied the reward
+      expect(result.userBalance.Coins, 'Coins balance must exactly match expected outcome').toBe(expectedCoins);
+      expect(result.userBalance.Energy, 'Energy balance must exactly match expected outcome').toBe(expectedEnergy);
 
       // Store post-spin balance — THIS IS THE SOURCE OF TRUTH
       postSpinBalance = result.userBalance;
@@ -82,46 +105,17 @@ test.describe('Wheel Spin E2E Flow', () => {
     });
 
     await test.step('Step 4: Validate state persistence across sessions', async () => {
-      // ── Invariant 1: Spin reward is applied exactly once ─
-      // The reward was applied (balance changed from initial state)
-      expect(postSpinBalance.Coins,
-        'Reward must be applied — post-spin coins should be >= initial coins'
-      ).toBeGreaterThanOrEqual(initialBalance.Coins);
-      // The reward was not applied again on relogin (no duplication)
-      expect(reloginBalance.Coins,
-        'Reward applied exactly once — relogin coins must equal post-spin coins, not higher'
-      ).toBe(postSpinBalance.Coins);
+      // postSpinBalance was already strictly validated in Step 2 (exact coin/energy math).
+      // Step 4 only needs to prove the server persisted that validated state across sessions.
 
-      //  User state persists across relogin 
-      expect(reloginBalance.Coins,
-        'Coins must persist across sessions'
-      ).toBe(postSpinBalance.Coins);
-      expect(reloginBalance.Gems,
-        'Gems must persist across sessions'
-      ).toBe(postSpinBalance.Gems);
-      expect(reloginBalance.Energy,
-        'Energy must persist across sessions'
-      ).toBe(postSpinBalance.Energy);
-
-      //  No duplicate rewards are granted 
-      // If coins were duplicated, relogin balance would exceed post-spin balance
-      expect(reloginBalance.Coins,
-        'No duplicate rewards — relogin coins must not exceed post-spin coins'
-      ).toBeLessThanOrEqual(postSpinBalance.Coins);
-      // Energy should not have been refunded (which would indicate a duplicate cycle)
-      expect(reloginBalance.Energy,
-        'No duplicate spin — energy must not be refunded after session change'
-      ).toBe(postSpinBalance.Energy);
-
-      //  No rollback occurs after session change ─
-      // Coins must not revert to initial balance (rollback detection)
-      expect(reloginBalance.Coins,
-        'No rollback — relogin coins must be >= initial coins (reward must not be reverted)'
-      ).toBeGreaterThanOrEqual(initialBalance.Coins);
-      // Energy must not revert to initial balance (rollback detection)
-      expect(reloginBalance.Energy,
-        'No rollback — energy must reflect the spin cost, not revert to initial energy'
-      ).toBe(initialBalance.Energy - 1);
+      // ── Invariant: Reward applied exactly once & state persists ──
+      // If relogin balance === post-spin balance, it proves:
+      //   1. The reward was applied (balance changed from initial — validated in Step 2)
+      //   2. The reward was not duplicated (balance is not higher than post-spin)
+      //   3. No rollback occurred (balance did not revert to initial)
+      expect(reloginBalance.Coins, 'Coins must persist across sessions').toBe(postSpinBalance.Coins);
+      expect(reloginBalance.Gems, 'Gems must persist across sessions').toBe(postSpinBalance.Gems);
+      expect(reloginBalance.Energy, 'Energy must persist across sessions').toBe(postSpinBalance.Energy);
     });
   });
 });

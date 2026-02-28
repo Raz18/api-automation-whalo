@@ -115,9 +115,7 @@ test.describe('Bonus — Spin Until Exhaustion', () => {
       'Rejection reason should be NotEnoughResources'
     ).toBe('NotEnoughResources');
 
-    console.log(`Post-exhaustion spin — status: ${rejectedSpin.status}, response: ${rejectedSpin.rawResponse}`);
-
-    // ── Step 3: Relogin — verify persistence after full exhaustion ──
+    // ── Step 3: Relogin — verify persistence after full exhaustion 
     const relogin = await login(request, deviceId);
     expect(relogin.httpStatus).toBe(200);
 
@@ -128,8 +126,6 @@ test.describe('Bonus — Spin Until Exhaustion', () => {
     expect(relogin.userBalance.Energy,
       'Relogin energy must still be 0 — no free refill on relogin'
     ).toBe(0);
-
-    console.log(`\nRelogin — Coins: ${relogin.userBalance.Coins}, Energy: ${relogin.userBalance.Energy}`);
   });
 
   test('wheel is scripted — same wedges and spin sequence for different users', async ({ request }) => {
@@ -182,12 +178,10 @@ test.describe('Bonus — Spin Until Exhaustion', () => {
     console.log(`User B indices: [${indicesB.join(', ')}]`);
     console.log(`Spin sequence match: ${indicesMatch}`);
 
-    // The wheel config (Wedges) is scripted — assert it
+    // The wheel config (Wedges) is scripted
     // The spin outcomes (selectedIndex) may or may not be scripted — log but assert
     expect(indicesMatch,
       'Spin outcome sequence should be identical for both users — wheel is fully scripted'
     ).toBe(true);
-
-    console.log('\nWheel is scripted: identical wedges AND identical spin outcomes for two independent users.');
   });
 });

@@ -126,8 +126,9 @@ A dedicated test file that spins the wheel until energy is fully depleted across
 | 3 | Spin count >= initial energy | `spinHistory.length >= initialEnergy` | Each spin costs 1 energy, but rewards can refill energy — extending the session |
 | 4 | Coins never decrease | `finalCoins >= initialCoins` | Coins can only increase or stay the same from spins |
 | 5 | Coin balance uses SpinResult.UserBalance | Source of truth | Never manually computed — other reward types (RewardDefinitionType 6 / FeedResponse) can change coins indirectly |
-| 6 | Relogin coins match final spin coins | `relogin.Coins === finalCoins` | Coin state persists after full energy exhaustion |
-| 7 | Relogin energy stays 0 | `relogin.Energy === 0` | No free energy refill on relogin |
+| 6 | **Negative test:** spin rejected at 0 energy | `status === -3`, `rawResponse === 'NotEnoughResources'` | Backend returns HTTP 200 but rejects with application-level error when energy is exhausted |
+| 7 | Relogin coins match final spin coins | `relogin.Coins === finalCoins` | Coin state persists after full energy exhaustion |
+| 8 | Relogin energy stays 0 | `relogin.Energy === 0` | No free energy refill on relogin |
 
 ### Test 2: Wheel is Scripted — Assumptions & Validations
 | # | What's Checked | Assertion | Assumption |
