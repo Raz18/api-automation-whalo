@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, APIRequestContext } from '@playwright/test';
 import { generateDeviceId, login, spinWheel } from '../utils/api-client';
 
 /**
@@ -23,7 +23,7 @@ test.describe('Bonus — Spin Until Exhaustion', () => {
    * Returns the full spin history and final state.
    */
   async function spinUntilExhausted(
-    request: any,
+    request: APIRequestContext,
     accessToken: string,
     initialEnergy: number,
     initialCoins: number

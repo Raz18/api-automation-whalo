@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, APIRequestContext } from '@playwright/test';
 import { generateDeviceId, login, spinWheel } from '../utils/api-client';
 
 /**
@@ -10,7 +10,7 @@ import { generateDeviceId, login, spinWheel } from '../utils/api-client';
  */
 test.describe('Bonus — Extended Login Response Validation', () => {
 
-  test('first login — validate additional response params', async ({ request }) => {
+  test('first login — validate additional response params', async ({ request }: { request: APIRequestContext }) => {
     const deviceId = generateDeviceId();
     const result = await login(request, deviceId);
 
@@ -64,7 +64,7 @@ test.describe('Bonus — Extended Login Response Validation', () => {
     console.log('Cards:', result.cards.length, '| Wedges:', result.wheel.Wedges.length);
   });
 
-  test('relogin — AccountCreated is false and identity persists', async ({ request }) => {
+  test('relogin — AccountCreated is false and identity persists', async ({ request }: { request: APIRequestContext }) => {
     const deviceId = generateDeviceId();
 
     // First login — create account

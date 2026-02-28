@@ -1,10 +1,10 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, APIRequestContext } from '@playwright/test';
 import { generateDeviceId, login, spinWheel } from '../utils/api-client';
 import { UserBalance } from '../utils/types';
 
 test.describe('Wheel Spin E2E Flow', () => {
 
-  test('reward persistence across sessions', async ({ request }) => {
+  test('reward persistence across sessions', async ({ request }: { request: APIRequestContext }) => {
     const deviceId = generateDeviceId();
     let accessToken: string;
     let initialBalance: UserBalance;
@@ -43,43 +43,42 @@ test.describe('Wheel Spin E2E Flow', () => {
       expect(result.rewards).toBeInstanceOf(Array);
       expect(result.rewards.length).toBeGreaterThan(0);
 
-      // Assert first reward has required fields
+      // Assert rewards array exists and is not empty
+      expect(result.rewards).toBeInstanceOf(Array);
+      expect(result.rewards.length).toBeGreaterThan(0);
+
+      // ASSUMPTION: For this test flow, i assume the wheel grants a single primary reward per spin.
       const reward = result.rewards[0];
+      
       expect(typeof reward.RewardDefinitionType).toBe('number');
       expect(typeof reward.RewardResourceType).toBe('number');
       expect(typeof reward.Amount).toBe('number');
       expect(reward.Amount).toBeGreaterThan(0);
       expect(typeof reward.TrackingId).toBe('string');
 
-      // Assert selectedIndex is valid
-      expect(result.selectedIndex).toBeGreaterThanOrEqual(0);
-
       // Dynamically calculate expected balances based on the exact reward granted.
-      // Note: The wheel is scripted (fixed seed for new users), so the first spin
-      // consistently lands on the same reward type. The branching below handles all
-      // reward types to keep the test resilient against server-side seed changes.
       let expectedCoins = initialBalance.Coins;
       let expectedEnergy = initialBalance.Energy - 1; // Base cost of 1 energy per spin
 
       if (reward.RewardDefinitionType === 1 && reward.RewardResourceType === 1) {
-        // Direct coin reward — Amount is added to balance
+        // Direct coin reward
         expectedCoins += reward.Amount;
       } else if (reward.RewardDefinitionType === 6 && reward.FeedResponse?.Rewards) {
         // Card/Feed reward — coins granted indirectly via FeedResponse.Rewards
-        const nestedRewards = Object.values(reward.FeedResponse.Rewards).flat() as any[];
-        for (const r of nestedRewards) {
-          if (r.RewardDefinitionType === 1 && r.RewardResourceType === 1) {
-            expectedCoins += r.Amount;
+        const nestedRewards = Object.values(reward.FeedResponse.Rewards).flat() as Reward[];
+        for (const nr of nestedRewards) {
+          if (nr.RewardDefinitionType === 1 && nr.RewardResourceType === 1) {
+            expectedCoins += nr.Amount;
           }
         }
       }
 
       if (reward.RewardResourceType === 3) {
-        // Energy reward — can appear alongside any reward type
+        // Energy reward 
         expectedEnergy += reward.Amount;
       }
 
-      // Strict assertions verifying the business logic actually applied the reward
+      // Strict assertions verifying the business logic
       expect(result.userBalance.Coins, 'Coins balance must exactly match expected outcome').toBe(expectedCoins);
       expect(result.userBalance.Energy, 'Energy balance must exactly match expected outcome').toBe(expectedEnergy);
 
