@@ -1,4 +1,4 @@
-# Fish of Fortune — QA Automation E2E Test Suite
+# Fish of Fortune - QA Automation E2E Test Suite
 
 ## Overview
 Automated end-to-end test suite for the Fish of Fortune Wheel Spin backend API flow.
